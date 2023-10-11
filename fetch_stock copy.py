@@ -8,6 +8,8 @@ API_ENDPOINT = "http://localhost:8080/api/stock/update_stock"
 MAX_RETRIES = 3
 DELAY = 2  # in seconds
 
+high_price = 0;
+low_price = 0;
 async def fetch_stock_price(session, symbol):
     # Base URL for Yahoo Finance page for stocks
     url = f"https://finance.yahoo.com/quote/{symbol}"
@@ -26,17 +28,6 @@ async def fetch_stock_price(session, symbol):
                 page_content = await response.text()
                 soup = BeautifulSoup(page_content, "html.parser")
 
-    
-    # if response.status_code != 200:
-    #     raise ValueError("Failed to fetch the webpage.")
-
-    # soup = BeautifulSoup(response.content, "html.parser")
-    
-    # Finding the element containing the current price based on its CSS class
-    # Note: This can change if Yahoo Finance updates its website layout
-        # Finding the element containing the current price based on its tag and attributes
-        # Extract name and symbol
-
             company_name = None
             stock_symbol = None
             volume = None
@@ -53,21 +44,30 @@ async def fetch_stock_price(session, symbol):
             volume = volume_element.text.replace(",", "") if volume_element else None  # Remove commas for numeric conversion
 
             price_element = soup.find("fin-streamer", {"data-symbol": symbol, "data-test": "qsp-price"})
+            price = price_element.text if price_element else None
 
             # Extract open and previous close values
             open_element = soup.find("td", {"data-test": "OPEN-value",})
             open_value = open_element.text if open_element else None
 
-            # prev_close_element = soup.find("td", {"data-test": "PREV_CLOSE-value"})
-            # prev_close_value = prev_close_element.text if prev_close_element else None
+            prev_close_element = soup.find("td", {"data-test": "PREV_CLOSE-value"})
+            prev_close_value = prev_close_element.text if prev_close_element else None
+
+            high_price = max(price, prev_close_value)
+            low_price = min(price, prev_close_value)
+
 
             data = {
                 "symbol": symbol,
                 "name": company_name,
-                "latestPrice": price_element.text if price_element else None,
+                "latestPrice": price,
                 "volume": volume,
                 "open": open_value,
-                # "close": prev_close_value,
+                "close": prev_close_value,
+                # write logic for high price and see if latestPrice is greater than current high price. If it is high = latestPrice
+                "high": high_price,
+                # write logic for low price and see if latestPrice is lower than current low price. If it is low = latestPrice
+                "low": low_price,
                 # ... Fetch other fields in the same manner.
             }
 
