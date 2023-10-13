@@ -1,3 +1,7 @@
 content.html
 errors.log
 stocks.json
+
+testFiles
+
+__pycache__

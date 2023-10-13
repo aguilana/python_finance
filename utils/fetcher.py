@@ -1,21 +1,9 @@
-import requests
+from .logger import log_error
 from bs4 import BeautifulSoup
-import time
 import json
 import asyncio
 import aiohttp
-import logging
-import datetime
-import schedule
-
-API_ENDPOINT = "http://localhost:8080/api/stock/update_stock"
-MAX_RETRIES = 3
-DELAY = 2
-
-time.sleep(5)
-
-high_price = 0;
-low_price = 0;
+from config import API_ENDPOINT, MAX_RETRIES, DELAY
 
 async def fetch_stock_price(session, symbol):
     # Base URL for Yahoo Finance page for stocks
@@ -58,22 +46,22 @@ async def fetch_stock_price(session, symbol):
                 
                 if not stock_symbol:
                     stock_symbol = symbol
-                    logging.error('Failed to extract stock symbol for data: %s', data, "{stock_symbol} is now {symbol}")
+                    log_error('Failed to extract stock symbol for data: %s', data, "{stock_symbol} is now {symbol}")
 
 
             # Extract volume
             volume_element = soup.find("fin-streamer", {"data-symbol": symbol, "data-field": "regularMarketVolume"})
-            volume = volume_element.text.replace(",", "") if volume_element else None  # Remove commas for numeric conversion
+            volume = clean_and_convert(volume_element.text) if volume_element else None  # Remove commas for numeric conversion
 
             price_element = soup.find("fin-streamer", {"data-symbol": symbol, "data-test": "qsp-price"})
-            price = price_element.text if price_element else None
+            price = clean_and_convert(price_element.text) if price_element else None
 
             # Extract open and previous close values
             open_element = soup.find("td", {"data-test": "OPEN-value",})
-            open_value = open_element.text if open_element else None
+            open_value = clean_and_convert(open_element.text) if open_element else None
 
             prev_close_element = soup.find("td", {"data-test": "PREV_CLOSE-value"})
-            prev_close_value = prev_close_element.text if prev_close_element else None
+            prev_close_value = clean_and_convert(prev_close_element.text) if prev_close_element else None
 
             high_price = max(price, prev_close_value)
             low_price = min(price, prev_close_value)
@@ -108,13 +96,6 @@ async def fetch_stock_price(session, symbol):
             else:
                 print(f"Failed to fetch {stock_symbol } after {MAX_RETRIES} attempts.")
 
-#set up logging
-logging.basicConfig(
-    filename="errors.log",
-    level=logging.ERROR,
-    format="%(asctime)s - %(levelname)s - %(message)s", 
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
 async def send_to_node(data):
     stock_symbol = data["symbol"]
     url = f'http://localhost:8080/api/stocks/{stock_symbol}'
@@ -123,48 +104,33 @@ async def send_to_node(data):
             if response.status != 200:
                 error_msg = f"Error sending data for {stock_symbol}. Status: {response.status}"
                 print(error_msg)
-                logging.error(error_msg)
+                log_error(error_msg)
                 return None
             return await response.json()
-        
+
 def read_stocks_from_json():
     try:
         with open('stocks.json', 'r') as f:
             stocks = json.load(f)
-        return [stock['symbol'] for stock in stocks]
+        return [stock['symbol'].replace(".", "-") for stock in stocks]
     except Exception as e:
         error_msg = f"Error reading stocks from JSON: {e}"
         print(error_msg)
-        logging.error(error_msg)
+        log_error(error_msg)
         return []  # return an empty list in case of error
+
+def clean_and_convert(value):
+    if not value:
+        return None
+    return float(value.replace(",", ""))
+
 
 async def main():
     symbols = read_stocks_from_json()
     async with aiohttp.ClientSession() as session:
         tasks = [ fetch_stock_price(session, symbol) for symbol in symbols ]
         await asyncio.gather(*tasks)
-        
+
 def run_main():
     # As asyncio.run is an async function, wrap the call to main() inside this function
     asyncio.run(main())
-
-# Set up the schedule
-def schedule_jobs():
-    # Run the task starting from 9 am every 1 hour until 4 pm
-    for hour in range(9, 16):  # 16 is exclusive
-        schedule.every().monday.at(f"{hour}:00").do(run_main)
-        schedule.every().tuesday.at(f"{hour}:00").do(run_main)
-        schedule.every().wednesday.at(f"{hour}:00").do(run_main)
-        schedule.every().thursday.at(f"{hour}:00").do(run_main)
-        schedule.every().friday.at(f"{hour}:00").do(run_main)
-
-    # Keep the script running
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-if __name__ == "__main__":
-    schedule_jobs()
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
