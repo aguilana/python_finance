@@ -4,7 +4,7 @@ from .fetcher import run_main
 
 def schedule_jobs():
     # Run the task starting from 9 am every 1 hour until 4 pm
-    for hour in range(9, 16):  # 16 is exclusive
+    for hour in range(9, 17):  # 16 is exclusive
         formatted_hour = f"{hour:02}"
         print(f"Running at {formatted_hour}:00:00")
         try:

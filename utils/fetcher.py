@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json
 import asyncio
 import aiohttp
+from utils.conversionFunctions import clean_and_convert, convert_market_cap
 from config import API_ENDPOINT, MAX_RETRIES, DELAY
 
 async def fetch_stock_price(session, symbol):
@@ -63,6 +64,12 @@ async def fetch_stock_price(session, symbol):
             prev_close_element = soup.find("td", {"data-test": "PREV_CLOSE-value"})
             prev_close_value = clean_and_convert(prev_close_element.text) if prev_close_element else None
 
+            market_cap_element = soup.find("td", {"data-test": "MARKET_CAP-value"})
+            if market_cap_element:
+                market_cap = convert_market_cap(market_cap_element.text)
+            else:
+                market_cap = None
+
             high_price = max(price, prev_close_value)
             low_price = min(price, prev_close_value)
 
@@ -70,17 +77,15 @@ async def fetch_stock_price(session, symbol):
                 "symbol": symbol,
                 "name": company_name,
                 "latestPrice": price,
+                "marketCap": market_cap,
                 "volume": volume,
                 "open": open_value,
                 "close": prev_close_value,
-                # write logic for high price and see if latestPrice is greater than current high price. If it is high = latestPrice
                 "high": high_price,
-                # write logic for low price and see if latestPrice is lower than current low price. If it is low = latestPrice
                 "low": low_price,
-                # ... Fetch other fields in the same manner.
+
             }
 
-            # print(f"Data fetched for {stock_symbol}: {data}")
             if data:
                 await send_to_node(data)
                 return data
@@ -98,7 +103,7 @@ async def fetch_stock_price(session, symbol):
 
 async def send_to_node(data):
     stock_symbol = data["symbol"]
-    url = f'http://localhost:8080/api/stocks/{stock_symbol}'
+    url = f'{API_ENDPOINT}{stock_symbol}'
     async with aiohttp.ClientSession() as session:
         async with session.put(url, json=data) as response:
             if response.status != 200:
@@ -118,12 +123,6 @@ def read_stocks_from_json():
         print(error_msg)
         log_error(error_msg)
         return []  # return an empty list in case of error
-
-def clean_and_convert(value):
-    if not value:
-        return None
-    return float(value.replace(",", ""))
-
 
 async def main():
     symbols = read_stocks_from_json()
