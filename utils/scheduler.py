@@ -2,13 +2,15 @@ import schedule
 import time
 import datetime
 from .fetcher import run_main
+from .isHoliday import is_holiday
 
 
 def schedule_jobs():
     print(time.strftime("%A, %B %d, %Y"))
-    print(time.strftime("%m/%d/%Y"))
-    if datetime.datetime.now().weekday() > 4:
-        print("It's the weekend. Wall street is closed.\nBye!")
+    today_date = datetime.date.today()
+    print(today_date)
+    if today_date.weekday() > 4 or is_holiday(today_date):
+        print("It's the weekend or a US Federal Holiday. Wall street is closed.\nBye!")
         return
 
     # Schedule the task to run every 30 minutes from 9:30 AM to 4:00 PM
@@ -40,27 +42,3 @@ def schedule_jobs():
     while True:
         schedule.run_pending()
         time.sleep(1)  # Check every second
-
-
-# def schedule_jobs():
-#     # print the current day of the week in day of the week + M/D/YY format
-#     print(time.strftime("%A, %B %d, %Y"))
-#     print(time.strftime("%m/%d/%Y"))
-
-#     # Run the task starting from 9 am every 1 hour until 4 pm
-#     for hour in range(9, 17):  # 16 is exclusive
-#         formatted_hour = f"{hour:02}"
-#         print(f"Running at {formatted_hour}:00:00")
-#         try:
-#             schedule.every().monday.at(f"{formatted_hour}:00:00").do(run_main)
-#             schedule.every().tuesday.at(f"{formatted_hour}:00:00").do(run_main)
-#             schedule.every().wednesday.at(f"{formatted_hour}:00:00").do(run_main)
-#             schedule.every().thursday.at(f"{formatted_hour}:00:00").do(run_main)
-#             schedule.every().friday.at(f"{formatted_hour}:00:00").do(run_main)
-#         except schedule.ScheduleValueError as e:
-#             print(f"Failed to schedule the job for {formatted_hour}:00:00 due to: {e}")
-
-#     # Keep the script running
-#     while True:
-#         schedule.run_pending()
-#         time.sleep(1)
