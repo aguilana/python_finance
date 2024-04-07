@@ -2,7 +2,7 @@ import schedule
 import time
 import datetime
 from .fetcher import run_main
-from .isHoliday import is_holiday
+from .is_holiday import is_holiday
 
 
 def schedule_jobs():

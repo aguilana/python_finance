@@ -1,6 +1,7 @@
 import unittest
 from utils.conversionFunctions import convert_market_cap
 
+
 class TestConvertMarketCap(unittest.TestCase):
 
     def test_convert_millions(self):
@@ -35,6 +36,7 @@ class TestConvertMarketCap(unittest.TestCase):
     def test_invalid_values(self):
         self.assertIsNone(convert_market_cap("1Z"))  # Unrecognized suffix
         self.assertIsNone(convert_market_cap("ABC"))  # Non-numeric string
+
 
 if __name__ == "__main__":
     unittest.main()
